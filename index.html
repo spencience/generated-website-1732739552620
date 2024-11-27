@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Car Game</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        .hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+<div id="game-container"></div>
+<div class="hud">Speed: <span id="speed">0</span> mph</div>
+<script>
+        let scene, camera, renderer, car, ground;
+        let speed = 0;
+        let acceleration = 0;
+        let turning = 0;
+        const maxSpeed = 50;
+        const friction = 0.95;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0, 20, 10);
+            scene.add(directionalLight);
+
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1a8f1a,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            // Car
+            const carGeometry = new THREE.BoxGeometry(2, 1, 4);
+            const carMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            car = new THREE.Mesh(carGeometry, carMaterial);
+            car.position.y = 0.5;
+            scene.add(car);
+
+            camera.position.set(0, 10, 15);
+            camera.lookAt(car.position);
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            animate();
+        }
+
+        function onKeyDown(event) {
+            switch(event.key) {
+                case 'ArrowUp':
+                    acceleration = 0.2;
+                    break;
+                case 'ArrowDown':
+                    acceleration = -0.2;
+                    break;
+                case 'ArrowLeft':
+                    turning = 0.05;
+                    break;
+                case 'ArrowRight':
+                    turning = -0.05;
+                    break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch(event.key) {
+                case 'ArrowUp':
+                case 'ArrowDown':
+                    acceleration = 0;
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    turning = 0;
+                    break;
+            }
+        }
+
+        function updateCar() {
+            speed += acceleration;
+            speed *= friction;
+            speed = Math.max(-maxSpeed/2, Math.min(maxSpeed, speed));
+            
+            car.rotation.y += turning * (speed/maxSpeed);
+            
+            const movement = new THREE.Vector3(
+                Math.sin(car.rotation.y) * speed * 0.1,
+                0,
+                Math.cos(car.rotation.y) * speed * 0.1
+            );
+            
+            car.position.add(movement);
+            
+            // Boundary checking
+            car.position.x = Math.max(-45, Math.min(45, car.position.x));
+            car.position.z = Math.max(-45, Math.min(45, car.position.z));
+            
+            document.getElementById('speed').textContent = Math.abs(Math.round(speed));
+        }
+
+        function updateCamera() {
+            const cameraOffset = new THREE.Vector3(
+                Math.sin(car.rotation.y) * -15,
+                10,
+                Math.cos(car.rotation.y) * -15
+            );
+            
+            camera.position.copy(car.position).add(cameraOffset);
+            camera.lookAt(car.position);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCar();
+            updateCamera();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
+    </script>
+</body>
+</html>
